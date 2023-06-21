@@ -37,7 +37,7 @@ fn main() {
                 match record.tags().get(b"MM") {
                     Some(bam::record::tags::TagValue::String(mm_tag_u8,  bam::record::tags::StringType::String))  => {
                         let mut mm_tag = std::str::from_utf8(mm_tag_u8).unwrap();
-                        // println!("{:?}", mm_tag);
+
                         // nothing to do if there are no base modifications
                         if mm_tag.len() == 0 {
                             break;
