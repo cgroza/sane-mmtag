@@ -1,6 +1,6 @@
 extern crate bam;
 use getopts::Options;
-use crate::bam::RecordReader;
+// use crate::bam::RecordReader;
 use std::io::Write;
 use std::env;
 
@@ -26,13 +26,13 @@ fn main() {
         panic!("No input provided.");
     }
 
-    let mut record = bam::Record::new();
+    // let mut record = bam::Record::new();
     let mut reader = bam::IndexedReader::from_path(matches.opt_str("b").unwrap()).unwrap();
-    let mut r  = reader.full();
+    let r  = reader.full();
 
-    loop {
-        match r.read_into(&mut record) {
-            Ok(true) => {
+    for nr  in r {
+        match nr {
+            Ok(record) => {
                 // retrieve tag and sequence
                 match record.tags().get(b"MM") {
                     Some(bam::record::tags::TagValue::String(mm_tag_u8,  bam::record::tags::StringType::String))  => {
@@ -81,10 +81,9 @@ fn main() {
                                  name = std::str::from_utf8(record.name()).unwrap(),
                                  bases = mod_bases.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(",")));
                     }
-                    _ => { panic!("No MM:Z tag!"); }
+                    _ => { }
                 }
             },
-            Ok(false) => break,
             Err(e) => panic!("{}", e),
         }
     }
