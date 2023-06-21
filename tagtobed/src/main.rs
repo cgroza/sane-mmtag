@@ -36,6 +36,11 @@ fn main() {
                 // retrieve tag and sequence
                 match record.tags().get(b"MM") {
                     Some(bam::record::tags::TagValue::String(mm_tag_u8,  bam::record::tags::StringType::String))  => {
+                        // skip secondary and supplementary alignments
+                        if record.flag().is_supplementary() || record.flag().is_secondary() {
+                            continue
+                        }
+
                         let mut mm_tag = std::str::from_utf8(mm_tag_u8).unwrap();
 
                         // nothing to do if there are no base modifications
@@ -43,6 +48,7 @@ fn main() {
                             continue;
                         }
                         mm_tag = &mm_tag[0..mm_tag.len() - 1];
+
 
                         // base modifications coordinates are on the original strand
                         let seq : String = if record.flag().is_reverse_strand() {
