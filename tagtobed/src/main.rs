@@ -40,7 +40,7 @@ fn main() {
 
                         // nothing to do if there are no base modifications
                         if mm_tag.len() == 0 {
-                            break;
+                            continue;
                         }
                         mm_tag = &mm_tag[0..mm_tag.len() - 1];
 
