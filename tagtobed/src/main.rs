@@ -1,10 +1,33 @@
-
 extern crate bam;
+use getopts::Options;
 use crate::bam::RecordReader;
+use std::io::Write;
+use std::env;
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let mut opts = Options::new();
+    opts.optopt("o", "", "set output file name", "NAME");
+    opts.optopt("b", "", "set input bam", "NAME");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => { m }
+        Err(f) => { panic!("{}", f.to_string()) }
+    };
+
+    // write to stdout if no output provided
+    let mut out_file : Box<dyn Write> = if !matches.opt_present("o") {
+        Box::new(std::io::stdout())
+    } else {
+         Box::new(std::fs::File::create(matches.opt_str("o").unwrap()).unwrap())
+    };
+
+    if !matches.opt_present("b") {
+        panic!("No input provided.");
+    }
+
     let mut record = bam::Record::new();
-    let mut reader = bam::IndexedReader::from_path("test/test.bam").unwrap();
+    let mut reader = bam::IndexedReader::from_path(matches.opt_str("b").unwrap()).unwrap();
     let mut r  = reader.full();
 
     loop {
@@ -21,13 +44,12 @@ fn main() {
                         }
                         mm_tag = &mm_tag[0..mm_tag.len() - 1];
 
-                        let seq : String;
                         // base modifications coordinates are on the original strand
-                        if record.flag().is_reverse_strand() {
-                            seq = String::from_utf8(record.sequence().rev_compl(std::ops::RangeFull).collect()).unwrap();
+                        let seq : String = if record.flag().is_reverse_strand() {
+                            String::from_utf8(record.sequence().rev_compl(std::ops::RangeFull).collect()).unwrap()
                         } else {
-                            seq = String::from_utf8(record.sequence().to_vec()).unwrap();
-                        }
+                            String::from_utf8(record.sequence().to_vec()).unwrap()
+                        };
 
                         // parse mm tag and Cs in sequence
                         // assumes only one type of modification
@@ -55,14 +77,12 @@ fn main() {
                             i = i + 1;
                         }
 
-                        println!("{:?}", c_vec);
-                        println!("{:?}", mm_indices);
-                        println!("{:?}", mod_bases);
-                        println!("----------------");
+                        let _ = out_file.write_fmt(format_args!("{name}\t{bases}\n",
+                                 name = std::str::from_utf8(record.name()).unwrap(),
+                                 bases = mod_bases.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(",")));
                     }
                     _ => { panic!("No MM:Z tag!"); }
                 }
-
             },
             Ok(false) => break,
             Err(e) => panic!("{}", e),
