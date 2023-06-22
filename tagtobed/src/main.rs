@@ -32,7 +32,8 @@ fn main() {
     };
 
     if !matches.opt_present("b") {
-        panic!("No input provided.");
+        eprintln!("No input provided.");
+        process::exit(1);
     }
 
     // let mut record = bam::Record::new();
