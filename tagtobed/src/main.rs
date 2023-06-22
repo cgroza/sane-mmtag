@@ -1,6 +1,7 @@
+#![feature(split_array)]
+
 extern crate bam;
 use getopts::Options;
-// use crate::bam::RecordReader;
 use std::io::Write;
 use std::env;
 
@@ -9,6 +10,7 @@ fn main() {
     let mut opts = Options::new();
     opts.optopt("o", "", "set output file name", "NAME");
     opts.optopt("b", "", "set input bam", "NAME");
+    opts.optopt("T", "", "tag name", "NAME");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
@@ -20,6 +22,13 @@ fn main() {
         Box::new(std::io::stdout())
     } else {
          Box::new(std::fs::File::create(matches.opt_str("o").unwrap()).unwrap())
+    };
+
+    let tag_name = if matches.opt_present("T") {
+        let tag = matches.opt_str("T").unwrap();
+        *tag.as_bytes().split_array_ref::<2>().0
+    } else {
+        *"MM".as_bytes().split_array_ref::<2>().0
     };
 
     if !matches.opt_present("b") {
@@ -34,7 +43,7 @@ fn main() {
         match nr {
             Ok(record) => {
                 // retrieve tag and sequence
-                match record.tags().get(b"MM") {
+                match record.tags().get(&tag_name) {
                     Some(bam::record::tags::TagValue::String(mm_tag_u8,  bam::record::tags::StringType::String))  => {
                         // skip secondary and supplementary alignments
                         if record.flag().is_supplementary() || record.flag().is_secondary() {
