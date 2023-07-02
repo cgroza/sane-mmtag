@@ -4,13 +4,14 @@ extern crate bam;
 use getopts::Options;
 use std::io::Write;
 use std::env;
+use std::process;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut opts = Options::new();
     opts.optopt("o", "", "set output file name", "NAME");
     opts.optopt("b", "", "set input bam", "NAME");
-    opts.optopt("T", "", "tag name", "NAME");
+    // opts.optopt("T", "", "tag name", "NAME");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
@@ -24,12 +25,12 @@ fn main() {
          Box::new(std::fs::File::create(matches.opt_str("o").unwrap()).unwrap())
     };
 
-    let tag_name = if matches.opt_present("T") {
-        let tag = matches.opt_str("T").unwrap();
-        *tag.as_bytes().split_array_ref::<2>().0
-    } else {
-        *"MM".as_bytes().split_array_ref::<2>().0
-    };
+    // let tag_name = if matches.opt_present("T") {
+    //     let tag = matches.opt_str("T").unwrap();
+    //     *tag.as_bytes().split_array_ref::<2>().0
+    // } else {
+    //     *"MM".as_bytes().split_array_ref::<2>().0
+    // };
 
     if !matches.opt_present("b") {
         eprintln!("No input provided.");
@@ -44,7 +45,7 @@ fn main() {
         match nr {
             Ok(record) => {
                 // retrieve tag and sequence
-                match record.tags().get(&tag_name) {
+                match record.tags().get(b"MM").or_else(| | record.tags().get(b"Mm") ) {
                     Some(bam::record::tags::TagValue::String(mm_tag_u8,  bam::record::tags::StringType::String))  => {
                         // skip secondary and supplementary alignments
                         if record.flag().is_supplementary() || record.flag().is_secondary() {
@@ -72,10 +73,6 @@ fn main() {
                         let c_vec : Vec<usize> = seq.match_indices("C").map(|c| c.0).collect();
                         let mm_indices : Vec<usize> = mm_tag.split(',').skip(1).
                             map(|i| { i.parse::<usize>().unwrap() }).collect();
-                        let max_c_vec_index : usize = mm_indices.iter().map(|a| { if *a == 0 { 1 } else { *a } } ).sum();
-
-                        // make sure the base modification coordinates do not go past the last potentially modified bases
-                        assert!(max_c_vec_index < c_vec.len());
 
                         // calculate position of modified bases
                         let mut mod_bases : Vec<usize> = Vec::new();
@@ -100,7 +97,10 @@ fn main() {
                     _ => { }
                 }
             },
-            Err(e) => panic!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                process::exit(1);
+            }
         }
     }
 }
