@@ -5,12 +5,14 @@ use getopts::Options;
 use std::io::Write;
 use std::env;
 use std::process;
+use std::iter::zip;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut opts = Options::new();
     opts.optopt("o", "", "set output file name", "NAME");
     opts.optopt("b", "", "set input bam", "NAME");
+    opts.optopt("p", "", "probability threshold", "0-255");
     // opts.optopt("T", "", "tag name", "NAME");
 
     let matches = match opts.parse(&args[1..]) {
@@ -37,6 +39,13 @@ fn main() {
         process::exit(1);
     }
 
+    if !matches.opt_present("p") {
+        eprintln!("No probability threshold (ML) provided.");
+        process::exit(1);
+    }
+
+    let p_threshold = matches.opt_str("p").unwrap().parse::<i64>().unwrap();
+
     // let mut record = bam::Record::new();
     let mut reader = bam::IndexedReader::from_path(matches.opt_str("b").unwrap()).unwrap();
     let r  = reader.full();
@@ -47,12 +56,15 @@ fn main() {
                 // retrieve tag and sequence
                 match record.tags().get(b"MM").or_else(| | record.tags().get(b"Mm") ) {
                     Some(bam::record::tags::TagValue::String(mm_tag_u8,  bam::record::tags::StringType::String))  => {
+                        match record.tags().get(b"ML").or_else(| | record.tags().get(b"Ml") ) {
+                            Some(bam::record::tags::TagValue::IntArray(ml_tag))  => {
                         // skip secondary and supplementary alignments
                         if record.flag().is_supplementary() || record.flag().is_secondary() {
                             continue
                         }
 
                         let mut mm_tag = std::str::from_utf8(mm_tag_u8).unwrap();
+                        // let ml_tag = std::str::from_utf8(ml_tag_array).unwrap();
 
                         // nothing to do if there are no base modifications
                         if mm_tag.len() == 0 {
@@ -72,7 +84,11 @@ fn main() {
                         // assumes only one type of modification
                         let c_vec : Vec<usize> = seq.match_indices("C").map(|c| c.0).collect();
                         let mm_indices : Vec<usize> = mm_tag.split(',').skip(1).
-                            map(|i| { i.parse::<usize>().unwrap() }).collect();
+                                    map(|i| { i.parse::<usize>().unwrap() }).collect();
+
+
+                        // let mm_probs : Vec<usize> = ml_tag.split(',').skip(1).
+                        //             map(|i| { i.parse::<usize>().unwrap() }).collect();
 
                         // calculate position of modified bases
                         let mut mod_bases : Vec<usize> = Vec::new();
@@ -92,9 +108,12 @@ fn main() {
 
                         let _ = out_file.write_fmt(format_args!("{name}\t{bases}\n",
                                  name = std::str::from_utf8(record.name()).unwrap(),
-                                 bases = mod_bases.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(",")));
+                                 bases = zip(mod_bases, ml_tag.iter()).filter(|pb| pb.1 >= p_threshold).map(|b| b.0.to_string()).collect::<Vec<String>>().join(",")));
+                            }
+                            _ => {} // for ml
+                        }
                     }
-                    _ => { }
+                    _ => {}     // for mm
                 }
             },
             Err(e) => {
