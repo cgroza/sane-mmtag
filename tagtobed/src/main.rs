@@ -12,8 +12,6 @@ fn main() {
     let mut opts = Options::new();
     opts.optopt("o", "", "set output file name", "NAME");
     opts.optopt("b", "", "set input bam", "NAME");
-    opts.optopt("p", "", "probability threshold", "0-255");
-    // opts.optopt("T", "", "tag name", "NAME");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
@@ -27,26 +25,12 @@ fn main() {
          Box::new(std::fs::File::create(matches.opt_str("o").unwrap()).unwrap())
     };
 
-    // let tag_name = if matches.opt_present("T") {
-    //     let tag = matches.opt_str("T").unwrap();
-    //     *tag.as_bytes().split_array_ref::<2>().0
-    // } else {
-    //     *"MM".as_bytes().split_array_ref::<2>().0
-    // };
 
     if !matches.opt_present("b") {
         eprintln!("No input provided.");
         process::exit(1);
     }
 
-    if !matches.opt_present("p") {
-        eprintln!("No probability threshold (ML) provided.");
-        process::exit(1);
-    }
-
-    let p_threshold = matches.opt_str("p").unwrap().parse::<i64>().unwrap();
-
-    // let mut record = bam::Record::new();
     let mut reader = bam::IndexedReader::from_path(matches.opt_str("b").unwrap()).unwrap();
     let r  = reader.full();
 
@@ -64,7 +48,6 @@ fn main() {
                         }
 
                         let mut mm_tag = std::str::from_utf8(mm_tag_u8).unwrap();
-                        // let ml_tag = std::str::from_utf8(ml_tag_array).unwrap();
 
                         // nothing to do if there are no base modifications
                         if mm_tag.len() == 0 {
@@ -108,7 +91,7 @@ fn main() {
 
                         let _ = out_file.write_fmt(format_args!("{name}\t{bases}\n",
                                  name = std::str::from_utf8(record.name()).unwrap(),
-                                 bases = zip(mod_bases, ml_tag.iter()).filter(|pb| pb.1 >= p_threshold).map(|b| b.0.to_string()).collect::<Vec<String>>().join(",")));
+                                 bases = zip(mod_bases, ml_tag.iter()).map(|b| b.0.to_string() + ":" + &b.1.to_string()).collect::<Vec<String>>().join(",")));
                             }
                             _ => {} // for ml
                         }

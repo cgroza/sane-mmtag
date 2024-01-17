@@ -3,10 +3,10 @@ import sys
 
 nodes_list_path = sys.argv[1]
 pickle_mc_in = sys.argv[2]
-pickle_cov_in = sys.argv[3]
+# pickle_cov_in = sys.argv[3]
 
 mc = pickle.load(open(pickle_mc_in, "rb"))
-mcov = pickle.load(open(pickle_cov_in, "rb"))
+# mcov = pickle.load(open(pickle_cov_in, "rb"))
 
 nodes_list = set()
 with open(nodes_list_path, "r") as f:
@@ -21,4 +21,4 @@ for node in nodes_list:
             if pos < 0:
                 strand = "-"
 
-            print(node, abs(pos), strand, mc[node][pos], mcov[node][pos])
+            print(node, abs(pos), strand, mc[node][pos][0], mc[node][pos][1]/mc[node][pos][0])

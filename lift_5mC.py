@@ -19,11 +19,11 @@ def parse_path(s):
         node_pos = next_node_pos
     return(nodes)
 
-def increment_count(d, node, pos):
+def increment_count(d, node, pos, score):
     if pos in d[node]:
-        d[node][pos] = d[node][pos] + 1
+        d[node][pos] = (d[node][pos][0] + 1, d[node][pos][1] + score)
     else:
-        d[node][pos] = 1
+        d[node][pos] = (1, score)
 
 pb_aln = sys.stdin
 
@@ -50,7 +50,13 @@ for line in pb_aln:
 
     assert fields[4] == "+"
 
-    bmods = list(map(int, fields[19].split(',')))
+    # this read has no modified bases
+    if len(fields) < 20:
+        continue
+
+    # base:score pairs
+    bmods = list(fields[19].split(','))
+
     qlen = int(fields[1])
     qstart = int(fields[2])
     qend = int(fields[3])
@@ -101,13 +107,17 @@ for line in pb_aln:
 
     # find base modifications
     bmods_path = []
-    for b in bmods:
+    for bmod in bmods:
+        [b, bscore] = bmod.split(":")
+        b = int(b)
+        bscore = int(bscore)
+
         i = 0
         for i in range(len(qmatches)):
             if b >= qmatches[i][0] and b < qmatches[i][1]:
                 offset = b - qmatches[i][0]
                 assert pmatches[i][0] + offset < pmatches[i][1]
-                bmods_path.append(pmatches[i][0] + offset)
+                bmods_path.append((pmatches[i][0] + offset, bscore))
 
     node_breaks = []
     j = 0
@@ -115,7 +125,7 @@ for line in pb_aln:
         node_breaks.append((j, j + node_sizes[node[1]], node))
         j = j + node_sizes[node[1]]
 
-    for pb in bmods_path:
+    for (pb, pbscore) in bmods_path:
         for nb in node_breaks:
             if pb >= nb[0] and pb < nb[1]:
                 node = nb[2]
@@ -124,7 +134,7 @@ for line in pb_aln:
                 if node[0] == "<":
                     offset = -(node_sizes[node[1]] - offset - 1)  # since interval open on right
 
-                increment_count(node_bmod_count, node[1], offset)
+                increment_count(node_bmod_count, node[1], offset, pbscore)
                 break           # there is only one possible matching node
 
 with open(pickle_out, "wb") as f:
